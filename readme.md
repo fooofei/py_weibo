@@ -56,6 +56,6 @@ tombkeeper: 02-21 20:07
 
 1 网络访问使用 requests
 
-2 json dict 使用 jsonpath 语法访问，该语法可与 Chrome 插件 jsonhandle 无缝使用，
+2 json dict 使用 jsonpath 语法访问，该语法可与 Chrome 插件 jsonhandle 无缝连接，
   jsonhandle 与 jsonpath 的路径是一样的，在 jsonhandle 用鼠标定位到路径，复制到
   python 中即可使用
