@@ -4,6 +4,7 @@ import os
 import sys
 import requests
 import jsonpath
+import time
 
 curpath = os.path.dirname(os.path.realpath(__file__))
 
@@ -71,12 +72,11 @@ class weibo(object):
         self._cookie = _get_chrome_cookies()
 
     def _access_net(self, *args, **kwargs):
-        import time
-
         t = 1
         # for _ in range(50000):
         while True:
             try:
+                time.sleep(0.5)
                 kwargs.update(cookies=self._cookie)
                 res = requests.get(*args, **kwargs)
                 return res.json(), res
@@ -110,8 +110,10 @@ class weibo(object):
 
             if not (ok == 1):
                 io_stderr_print(u'not ok {}'.format(res.url))
+                io_stderr_print(res.content[:300:])
                 break
 
+            next_page = jsonpath.jsonpath(r,u'$.cardlistInfo.page')[0]
             cards = jsonpath.jsonpath(r, u'$.cards')[0]
 
             for card in cards:
@@ -150,9 +152,12 @@ class weibo(object):
                 this_weibo_url = u'http://weibo.com/{}/{}'.format(uid, bid)
 
                 # comments
+                comments_count = jsonpath.jsonpath(card,u'$.mblog.comments_count')
+                comments_count = min(comments_count,1000)
+
                 comments = []
-                for page_comment in (1, 10):
-                    r_comment, res = self._access_net(u'https://m.weibo.cn/api/comments/show'
+                for page_comment in (1, 1000):
+                    r_comment, res_comment = self._access_net(u'https://m.weibo.cn/api/comments/show'
                                                       , params={u'id': id, u'page': page_comment})
 
                     ok = jsonpath.jsonpath(r_comment, u'$.ok')[0]
@@ -170,8 +175,7 @@ class weibo(object):
                         comments.append(
                             u'{} 在 {} 使用设备 {} 回复内容: {}'.format(cm_screen_name, cm_create_at, cm_source, cm_text)
                         )
-
-                        if len(comments) > 1000: break
+                        if len(comments) == comments_count: break
 
                 comments.reverse()
 
@@ -196,6 +200,13 @@ class weibo(object):
 
                 count += 1
 
+            if next_page is None:
+                io_stderr_print(u'next page is None {}'.format(res.url))
+                io_stderr_print(res.content[:300:])
+                break
+
+        else:
+            io_stderr_print(u'page run out')
 
 def print_weibo(wb):
     io_print(u'{} {}: {}'.format(
