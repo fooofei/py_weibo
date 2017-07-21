@@ -101,7 +101,7 @@ class weibo(object):
 
         count = 1
 
-        for page in range(1, 1000):
+        for page in range(1, 100000):
 
             r, res = self._access_net(u'https://m.weibo.cn/api/container/getIndex'
                                       , params={u'containerid': containerid, u'type': u'uid', u'page': page})
