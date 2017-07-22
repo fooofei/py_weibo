@@ -177,7 +177,7 @@ class weibo(object):
                 , retweeted[0])
 
         bid = jsonpath.jsonpath(card, u'$.mblog.bid')[0]
-        uid = jsonpath.jsonpath(card, u'$..mblog.user.id')[0]
+        uid = jsonpath.jsonpath(card, u'$.mblog.user.id')[0]
         this_weibo_url = u'http://weibo.com/{}/{}'.format(uid, bid)
 
         comments_count = jsonpath.jsonpath(card, u'$.mblog.comments_count')
