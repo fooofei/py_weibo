@@ -195,11 +195,11 @@ class weibo(object):
             u'text': u''.join(text),
             u'from': jsonpath.jsonpath(card, u'$.mblog.user.screen_name')[0],
             u'retweeted': retweeted,
-            u'comments': self.weibo_comments(weibo_id) if comments_count else [],
+            u'comments': self.weibo_comments(weibo_id, this_weibo_url) if comments_count else [],
             u'pics': pics,
         }
 
-    def weibo_comments(self, weibo_id):
+    def weibo_comments(self, weibo_id, this_weibo_url):
         comments = []
 
         for page_comment in (1, 1000):
@@ -231,6 +231,7 @@ class weibo(object):
                     io_stderr_print(u'    max_page={} total_number={} receiver comments {}'
                                     .format(max_page, total_number, len(comments)))
                     io_stderr_print(u'    {}'.format(res_comment.url))
+                    io_stderr_print(u'    related weibo {}'.format(this_weibo_url))
                 break
 
         comments.reverse()
