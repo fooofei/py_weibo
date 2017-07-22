@@ -74,12 +74,23 @@ class weibo(object):
     def _access_net(self, *args, **kwargs):
         t = 1
         # for _ in range(50000):
+
+        not_ok_response = []
         while True:
             try:
-                time.sleep(0.5)
+                time.sleep(0.3)
                 kwargs.update(cookies=self._cookie)
                 res = requests.get(*args, **kwargs)
-                return res.json(), res
+                res_json = res.json()
+
+                # 如果出现 ok=0 需要再重试 5 次，确认结束 因为没有精确办法知道什么时候可以结束
+                ok = jsonpath.jsonpath(res_json, u'$.ok')[0]
+                if not (ok == 1):
+                    not_ok_response.append(res)
+                    if len(not_ok_response) > 5:
+                        return res_json, res
+                else:
+                    return res_json, res
             except ValueError:
                 io_stderr_print(u'retry {}'.format(res.url))
                 if res.url.startswith(u'https://login.sina.com.cn/'):
@@ -110,103 +121,110 @@ class weibo(object):
 
             if not (ok == 1):
                 io_stderr_print(u'not ok {}'.format(res.url))
-                io_stderr_print(res.content[:300:])
+                io_stderr_print(res.content[:500:])
                 break
 
-            next_page = jsonpath.jsonpath(r,u'$.cardlistInfo.page')[0]
+            next_page = jsonpath.jsonpath(r, u'$.cardlistInfo.page')[0]
             cards = jsonpath.jsonpath(r, u'$.cards')[0]
 
             for card in cards:
-                card_type = jsonpath.jsonpath(card, u'$.card_type')[0]
-
-                # 默认 card_type == 9 是微博 多量看看是不是这样
-                if card_type == 11:  # 安插的广告
-                    continue
-
-                id = jsonpath.jsonpath(card, u'$.mblog.id')[0]
-
-                original_pic = jsonpath.jsonpath(card, u'$.mblog.original_pic')
-                if original_pic: original_pic = original_pic[0]
-
-                text = []
-
-                create_at = jsonpath.jsonpath(card, u'$.mblog.created_at')
-                if create_at: create_at = create_at[0]
-
-                source = jsonpath.jsonpath(card, u'$.mblog.source')
-                if source: text.append(u'[来自:{}] '.format(source[0]))
-                title = jsonpath.jsonpath(card, u'$.mblog.title.text')
-                if title: text.append(u'[{}] '.format(title[0]))
-
-                t = jsonpath.jsonpath(card, u'$.mblog.raw_text')
-                if not t: t = jsonpath.jsonpath(card, u'$.mblog.text')
-                if t: text.append(t[0])
-
-                retweeted = jsonpath.jsonpath(card, u'$.mblog.retweeted_status.text')
-                if retweeted:
-                    retweeted = u'[{}] {}'.format(
-                        jsonpath.jsonpath(card, u'$.mblog.retweeted_status.id')[0]
-                        , retweeted[0])
-
-                bid = jsonpath.jsonpath(card, u'$.mblog.bid')[0]
-                this_weibo_url = u'http://weibo.com/{}/{}'.format(uid, bid)
-
-                # comments
-                comments_count = jsonpath.jsonpath(card,u'$.mblog.comments_count')
-                comments_count = min(comments_count,1000)
-
-                comments = []
-                for page_comment in (1, 1000):
-                    r_comment, res_comment = self._access_net(u'https://m.weibo.cn/api/comments/show'
-                                                      , params={u'id': id, u'page': page_comment})
-
-                    ok = jsonpath.jsonpath(r_comment, u'$.ok')[0]
-
-                    if not (ok == 1):
-                        break
-
-                    datas = jsonpath.jsonpath(r_comment, u'$.data')[0]
-                    for data in datas:
-                        cm_screen_name = jsonpath.jsonpath(data, u'$.user.screen_name')[0]
-                        cm_create_at = jsonpath.jsonpath(data, u'$.created_at')[0]
-                        cm_source = jsonpath.jsonpath(data, u'$.source')[0]
-                        cm_text = jsonpath.jsonpath(data, u'$.text')[0]
-
-                        comments.append(
-                            u'{} 在 {} 使用设备 {} 回复内容: {}'.format(cm_screen_name, cm_create_at, cm_source, cm_text)
-                        )
-                        if len(comments) == comments_count: break
-
-                comments.reverse()
-
-                pics = []
-                ps = jsonpath.jsonpath(card, u'$.mblog.pics')
-                if ps:
-                    ps = ps[0]
-                    for p in ps:
-                        pics.append(jsonpath.jsonpath(p, u'$.large.url')[0])
-
-                yield {
-                    u'id': id,
-                    u'url': this_weibo_url,
-                    u'created_at': create_at,
-                    u'text': u''.join(text),
-                    u'from': jsonpath.jsonpath(card, u'$.mblog.user.screen_name')[0],
-                    u'index': count,
-                    u'retweeted': retweeted,
-                    u'comments': comments,
-                    u'pics': pics,
-                }
-
-                count += 1
+                v = self._parse_weibo_card(card)
+                if v:
+                    v.update(index=count)
+                    yield v
+                    count += 1
 
             if next_page is None:
                 io_stderr_print(u'next page is None {}'.format(res.url))
-                io_stderr_print(res.content[:300:])
+                io_stderr_print(res.content[:500:])
                 break
 
         else:
             io_stderr_print(u'page run out')
+
+    def _parse_weibo_card(self, card):
+        card_type = jsonpath.jsonpath(card, u'$.card_type')[0]
+
+        # 默认 card_type == 9 是微博 多量看看是不是这样
+        if card_type == 11:  # 安插的广告
+            return {}
+
+        weibo_id = jsonpath.jsonpath(card, u'$.mblog.id')[0]
+
+        original_pic = jsonpath.jsonpath(card, u'$.mblog.original_pic')
+        if original_pic: original_pic = original_pic[0]
+
+        text = []
+
+        create_at = jsonpath.jsonpath(card, u'$.mblog.created_at')
+        if create_at: create_at = create_at[0]
+
+        source = jsonpath.jsonpath(card, u'$.mblog.source')
+        if source: text.append(u'[来自:{}] '.format(source[0]))
+        title = jsonpath.jsonpath(card, u'$.mblog.title.text')
+        if title: text.append(u'[{}] '.format(title[0]))
+
+        t = jsonpath.jsonpath(card, u'$.mblog.raw_text')
+        if not t: t = jsonpath.jsonpath(card, u'$.mblog.text')
+        if t: text.append(t[0])
+
+        retweeted = jsonpath.jsonpath(card, u'$.mblog.retweeted_status.text')
+        if retweeted:
+            retweeted = u'[{}] {}'.format(
+                jsonpath.jsonpath(card, u'$.mblog.retweeted_status.id')[0]
+                , retweeted[0])
+
+        bid = jsonpath.jsonpath(card, u'$.mblog.bid')[0]
+        uid = jsonpath.jsonpath(card, u'$..mblog.user.id')[0]
+        this_weibo_url = u'http://weibo.com/{}/{}'.format(uid, bid)
+
+        comments_count = jsonpath.jsonpath(card, u'$.mblog.comments_count')
+
+        pics = []
+        ps = jsonpath.jsonpath(card, u'$.mblog.pics')
+        if ps:
+            ps = ps[0]
+            for p in ps:
+                pics.append(jsonpath.jsonpath(p, u'$.large.url')[0])
+
+        return {
+            u'id': weibo_id,
+            u'url': this_weibo_url,
+            u'created_at': create_at,
+            u'text': u''.join(text),
+            u'from': jsonpath.jsonpath(card, u'$.mblog.user.screen_name')[0],
+            u'retweeted': retweeted,
+            u'comments': self.weibo_comments(weibo_id, min(comments_count, 1000)),
+            u'pics': pics,
+        }
+
+    def weibo_comments(self, weibo_id, comments_count):
+        comments = []
+        
+        for page_comment in (1, 1000):
+            r_comment, res_comment = self._access_net(u'https://m.weibo.cn/api/comments/show'
+                                                      , params={u'id': weibo_id, u'page': page_comment})
+
+            ok = jsonpath.jsonpath(r_comment, u'$.ok')[0]
+
+            if not (ok == 1):
+                break
+
+            datas = jsonpath.jsonpath(r_comment, u'$.data')[0]
+            for data in datas:
+                cm_screen_name = jsonpath.jsonpath(data, u'$.user.screen_name')[0]
+                cm_create_at = jsonpath.jsonpath(data, u'$.created_at')[0]
+                cm_source = jsonpath.jsonpath(data, u'$.source')[0]
+                cm_text = jsonpath.jsonpath(data, u'$.text')[0]
+
+                comments.append(
+                    u'{} 在 {} 使用设备 {} 回复内容: {}'.format(cm_screen_name, cm_create_at, cm_source, cm_text)
+                )
+                if len(comments) == comments_count: break
+
+        comments.reverse()
+        return comments
+
 
 def print_weibo(wb):
     io_print(u'{} {}: {}'.format(

@@ -30,7 +30,8 @@
 3 无限重试，在抓取过程中，频繁抓取会突然导致 cookie 失效，需要立刻手动登录一次微博(https://m.weibo.cn/)，
   脚本通过 requests 的 url 来判断是否属于这种需要登录的情况，如果是，则重新载入浏览器的 cookie，新载入的
   浏览器 cookie 即为刚刚重新登录过的，从而完成了"断点"抓取，无需重新运行脚本
-  
+
+4 不同于用作大数据研究的微博抓取程序，该脚本注重准确性、完整性，不断重试一定要获取到指定人所有微博
   
 ###  抓取结果示例:
 
@@ -59,3 +60,14 @@ tombkeeper: 02-21 20:07
 2 json dict 使用 jsonpath 语法访问，该语法可与 Chrome 插件 jsonhandle 无缝连接，
   jsonhandle 与 jsonpath 的路径是一样的，在 jsonhandle 用鼠标定位到路径，复制到
   python 中即可使用
+ 
+3 没有精确的办法判断获取到了全部微博，没有总 page count，无法信任 weibo count ，因为
+  用户的不可见微博也可能包含在里面，如果信任这个数目，会造成死循环
+  
+个人信息，得到获取微博需要的 containerid
+
+hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310
+
+每一页的微博 
+
+hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310&containerid=1076035044281310&page=1
