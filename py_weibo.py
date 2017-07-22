@@ -135,6 +135,7 @@ class weibo(object):
                     yield v
                     count += 1
 
+            # 仅仅依靠这个决定结束还不够 有时候结束了但是 next_page 并不是 None
             if next_page is None:
                 io_stderr_print(u'next page is None {}'.format(res.url))
                 io_stderr_print(res.content[:500:])
@@ -179,7 +180,7 @@ class weibo(object):
         uid = jsonpath.jsonpath(card, u'$..mblog.user.id')[0]
         this_weibo_url = u'http://weibo.com/{}/{}'.format(uid, bid)
 
-        # comments_count = jsonpath.jsonpath(card, u'$.mblog.comments_count')
+        comments_count = jsonpath.jsonpath(card, u'$.mblog.comments_count')
         pics = []
         ps = jsonpath.jsonpath(card, u'$.mblog.pics')
         if ps:
@@ -194,7 +195,7 @@ class weibo(object):
             u'text': u''.join(text),
             u'from': jsonpath.jsonpath(card, u'$.mblog.user.screen_name')[0],
             u'retweeted': retweeted,
-            u'comments': self.weibo_comments(weibo_id),
+            u'comments': self.weibo_comments(weibo_id) if comments_count else [],
             u'pics': pics,
         }
 
