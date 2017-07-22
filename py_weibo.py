@@ -76,16 +76,17 @@ class weibo(object):
         # for _ in range(50000):
 
         not_ok_response = []
+        not_ok_need_retry = kwargs.pop(u'not_ok_need_retry', True)
         while True:
             try:
-                time.sleep(0.3)
+                time.sleep(0.7)
                 kwargs.update(cookies=self._cookie)
                 res = requests.get(*args, **kwargs)
                 res_json = res.json()
 
                 # 如果出现 ok=0 需要再重试 5 次，确认结束 因为没有精确办法知道什么时候可以结束
                 ok = jsonpath.jsonpath(res_json, u'$.ok')[0]
-                if not (ok == 1):
+                if not_ok_need_retry and (not (ok == 1)):
                     not_ok_response.append(res)
                     if len(not_ok_response) > 5:
                         return res_json, res
@@ -178,8 +179,7 @@ class weibo(object):
         uid = jsonpath.jsonpath(card, u'$..mblog.user.id')[0]
         this_weibo_url = u'http://weibo.com/{}/{}'.format(uid, bid)
 
-        comments_count = jsonpath.jsonpath(card, u'$.mblog.comments_count')
-
+        # comments_count = jsonpath.jsonpath(card, u'$.mblog.comments_count')
         pics = []
         ps = jsonpath.jsonpath(card, u'$.mblog.pics')
         if ps:
@@ -194,22 +194,25 @@ class weibo(object):
             u'text': u''.join(text),
             u'from': jsonpath.jsonpath(card, u'$.mblog.user.screen_name')[0],
             u'retweeted': retweeted,
-            u'comments': self.weibo_comments(weibo_id, min(comments_count, 1000)),
+            u'comments': self.weibo_comments(weibo_id),
             u'pics': pics,
         }
 
-    def weibo_comments(self, weibo_id, comments_count):
+    def weibo_comments(self, weibo_id):
         comments = []
-        
+
         for page_comment in (1, 1000):
             r_comment, res_comment = self._access_net(u'https://m.weibo.cn/api/comments/show'
-                                                      , params={u'id': weibo_id, u'page': page_comment})
+                                                      , params={u'id': weibo_id, u'page': page_comment}
+                                                      , not_ok_need_retry=False)
 
             ok = jsonpath.jsonpath(r_comment, u'$.ok')[0]
 
             if not (ok == 1):
                 break
 
+            max_page = jsonpath.jsonpath(r_comment, u'$.max')[0]
+            total_number = jsonpath.jsonpath(r_comment, u'$.total_number')[0]
             datas = jsonpath.jsonpath(r_comment, u'$.data')[0]
             for data in datas:
                 cm_screen_name = jsonpath.jsonpath(data, u'$.user.screen_name')[0]
@@ -220,7 +223,14 @@ class weibo(object):
                 comments.append(
                     u'{} 在 {} 使用设备 {} 回复内容: {}'.format(cm_screen_name, cm_create_at, cm_source, cm_text)
                 )
-                if len(comments) == comments_count: break
+
+            if page_comment == max_page:
+                if len(comments) != total_number:
+                    io_stderr_print(u'comment number not equal')
+                    io_stderr_print(u'    max_page={} total_number={} receiver comments {}'
+                                    .format(max_page, total_number, len(comments)))
+                    io_stderr_print(u'    {}'.format(res_comment.url))
+                break
 
         comments.reverse()
         return comments
