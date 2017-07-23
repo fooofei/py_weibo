@@ -76,3 +76,6 @@ hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310
 hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310&containerid=1076035044281310&page=1
 
 5 服务器很不稳定，json 字段中的 $.cardlistInfo.page 也不可信
+
+6 总结服务器不稳定的地方在于 获取微博数目没办法校验是否获取完全、没办法了解微博 page 是否能结束了
+  能获取多少微博全看运气
