@@ -63,7 +63,10 @@ tombkeeper: 02-21 20:07
  
 3 没有精确的办法判断获取到了全部微博，没有总 page count，无法信任 weibo count ，因为
   用户的不可见微博也可能包含在里面，如果信任这个数目，会造成死循环
-  
+ 
+
+4 几个 url 模板
+
 个人信息，得到获取微博需要的 containerid
 
 hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310
@@ -71,3 +74,5 @@ hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310
 每一页的微博 
 
 hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310&containerid=1076035044281310&page=1
+
+5 服务器很不稳定，json 字段中的 $.cardlistInfo.page 也不可信

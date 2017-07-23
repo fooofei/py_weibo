@@ -109,13 +109,29 @@ class weibo(object):
         # jsonpath.jsonpath(r,u'$.userInfo.toolbar_menus[2].params.menu_list[0].actionlog.oid')[0]
         return jsonpath.jsonpath(r, u'$.tabsInfo.tabs[1].containerid')[0]
 
-    def iter_weibo(self, uid, containerid):
+    def _weibo_page(self, *args, **kwargs):
+        ''' 因为 next_page 不可信因此要多来几次 '''
+        next_page_none_response = []
+        while True:
+            r, res = self._access_net(*args, **kwargs)
+
+            ok = jsonpath.jsonpath(r, u'$.ok')[0]
+
+            if not (ok == 1): return r, res
+
+            next_page = jsonpath.jsonpath(r, u'$.cardlistInfo.page')[0]
+            if next_page is not None: return r, res
+
+            next_page_none_response.append(res)
+            if len(next_page_none_response) > 4: return r, res
+
+    def iter_weibo(self, containerid):
 
         count = 1
 
         for page in range(1, 100000):
 
-            r, res = self._access_net(u'https://m.weibo.cn/api/container/getIndex'
+            r, res = self._weibo_page(u'https://m.weibo.cn/api/container/getIndex'
                                       , params={u'containerid': containerid, u'type': u'uid', u'page': page})
 
             ok = jsonpath.jsonpath(r, u'$.ok')[0]
@@ -262,7 +278,7 @@ def user(dest_uid):
 
     weibo_containerid = obj.get_weibo_containerid(dest_uid)
 
-    for v in obj.iter_weibo(dest_uid, weibo_containerid):
+    for v in obj.iter_weibo(weibo_containerid):
         print_weibo(v)
         print('')
 
