@@ -10,7 +10,7 @@
 
 - 微博 id 
   
-- 可访问这条微博的 url
+- 可访问这条微博的 url (非 100%　有效, 原因见 program details)
   
 - 微博发布设备来源
   
@@ -79,3 +79,10 @@ hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310&containerid=
 
 6 总结服务器不稳定的地方在于 获取微博数目没办法校验是否获取完全、没办法了解微博 page 是否能结束了
   能获取多少微博全看运气
+
+7 增加一条不可信：
+  通过 url hxxps://m.weibo.cn/api/container/getIndex?type=uid&value=5044281310&containerid=1076035044281310&page=1
+  可以获取到微博，对应到 tombkeeper 的最后一页微博是 
+  hxxps://m.weibo.cn/api/container/getIndex?type=uid&containerid=1076031401527553&page=1423 
+  每一页中由 $.cards 列表保存微博内容， 由 $.cards[0].mblog.bid 能拼凑出该条微博的访问地址，结果到 tombkeeper 最后一页
+  发现这个规律不是 100% 的
